@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Disparador de recados – WhatsApp</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f9;--c:#fff;--t:#1d2433;--m:#667085;--b:#e1e4ea;--g:#128c4a;--r:#d92d20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--c:#1d2229;--t:#eceff4;--m:#9aa3b2;--b:#2c333d;--g:#3ddc84;--r:#ff6b60}}
+:root[data-theme="dark"]{--bg:#14171c;--c:#1d2229;--t:#eceff4;--m:#9aa3b2;--b:#2c333d;--g:#3ddc84;--r:#ff6b60}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.4 system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{font-size:22px;margin:8px 0 4px}h2{font-size:15px;margin:0 0 6px}
+.sub{color:var(--m);margin:0 0 16px}
+.card{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:14px;margin-bottom:12px}
+textarea,input{width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--b);border-radius:8px;background:var(--bg);color:var(--t);font:inherit;font-size:15px}
+textarea{min-height:120px;resize:vertical}
+small,.hint{color:var(--m);font-size:13px}
+.top{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:10px}
+.top label{font-size:13px;color:var(--m)}.top input{width:64px}
+button{font:inherit;font-size:15px;cursor:pointer;border-radius:8px;padding:9px 12px;border:1px solid var(--g);background:var(--c);color:var(--g);font-weight:600}
+button.main{background:var(--g);color:#fff}
+:root[data-theme="dark"] button.main{color:#08210f}
+button.ghost{border-color:var(--b);color:var(--m)}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pill{background:var(--c);border:1px solid var(--b);border-radius:20px;padding:4px 12px;font-size:14px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.n{flex:1 1 180px;min-width:0}.n b{display:block;overflow-wrap:anywhere}.n small{display:block}
+.row.sent{border-color:var(--g)}.row.bad{border-color:var(--r);opacity:.7}
+a.btn{background:var(--g);color:#fff;text-decoration:none;padding:9px 12px;border-radius:8px;font-weight:600;font-size:15px}
+:root[data-theme="dark"] a.btn{color:#08210f}
+.s{width:40px;padding:9px 0;text-align:center;border-color:var(--b);color:var(--m)}
+.s.on-ok{background:var(--g);border-color:var(--g);color:#fff}
+.s.on-no{background:var(--r);border-color:var(--r);color:#fff}
+</style></head><body>
+<h1>📱 Disparador de recados</h1>
+<p class="sub">Cole a mensagem, cole os contatos e acompanhe quem já recebeu.</p>
+
+<div class="card">
+<h2>1. Mensagem</h2>
+<textarea id="msg" placeholder="Olá, {nome}! Tudo bem?&#10;Escreva aqui o recado. Use {nome} para colocar o primeiro nome de cada pessoa."></textarea>
+<small>Dica: {nome} vira o primeiro nome. Emojis funcionam normalmente.</small>
+</div>
+
+<div class="card">
+<h2>2. Contatos</h2>
+<textarea id="nums" placeholder="Um por linha:&#10;Maria Souza — 91234-5678&#10;11 98765-4321&#10;João Lima — 99999-1111 | Mensagem só para o João (opcional)"></textarea>
+<small>Formato: <b>Nome — número</b> (o nome é opcional). Depois de <b>|</b> você pode escrever uma mensagem diferente só para aquela pessoa.</small>
+<div class="top">
+<div><label for="ddd">DDD padrão</label><br><input id="ddd" value="11" inputmode="numeric" maxlength="2"></div>
+<button class="main" onclick="gen()">Gerar lista</button>
+<button class="ghost" onclick="clr()">Limpar tudo</button>
+</div>
+</div>
+
+<div id="stats" class="stats"></div>
+<div id="list"></div>
+
+<script>
+var C=[],ST={};
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function $(i){return document.getElementById(i)}
+function norm(raw,ddd){
+ var d=raw.replace(/\D/g,"");
+ if(d.length==8||d.length==9)d=ddd+d;
+ if(d.length==10||d.length==11)d="55"+d;
+ return d;
+}
+function parse(){
+ var ddd=$("ddd").value.replace(/\D/g,"")||"11",out=[];
+ $("nums").value.split("\n").forEach(function(l){
+  l=l.trim();if(!l)return;
+  var custom="",p=l.indexOf("|");
+  if(p>-1){custom=l.slice(p+1).trim();l=l.slice(0,p).trim();}
+  var m=l.match(/(\+?[\d][\d\s().\-]{6,})\s*$/);
+  if(!m)return;
+  var name=l.slice(0,m.index).replace(/[—–\-:📱]+/g," ").trim();
+  var n=norm(m[1],ddd);
+  if(n.length<12)return;
+  out.push({name:name,num:n,custom:custom});
+ });
+ return out;
+}
+function text(c){
+ var t=c.custom||$("msg").value;
+ var first=c.name?c.name.split(/\s+/)[0]:"";
+ return t.replace(/\{nome\}/gi,first);
+}
+function gen(){
+ C=parse();
+ lsSet("zap_msg",$("msg").value);lsSet("zap_nums",$("nums").value);lsSet("zap_ddd",$("ddd").value);
+ render();
+}
+function render(){
+ var h="";
+ C.forEach(function(c,i){
+  var s=ST[c.num]||"";
+  h+='<div class="row '+(s=="ok"?"sent":s=="no"?"bad":"")+'">'+
+  '<div class="n"><b>'+esc(c.name||"Sem nome")+'</b><small>+'+c.num+(c.custom?" · msg personalizada":"")+'</small></div>'+
+  '<button id="c'+i+'" onclick="cp('+i+')">1. Copiar</button>'+
+  '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/'+c.num+'">2. Abrir</a>'+
+  '<button class="s '+(s=="ok"?"on-ok":"")+'" title="Enviado" onclick="mark('+i+',\'ok\')">✓</button>'+
+  '<button class="s '+(s=="no"?"on-no":"")+'" title="Número não existe" onclick="mark('+i+',\'no\')">✗</button></div>';
+ });
+ $("list").innerHTML=h;
+ var ok=0,no=0;C.forEach(function(c){if(ST[c.num]=="ok")ok++;if(ST[c.num]=="no")no++;});
+ $("stats").innerHTML=C.length?'<span class="pill">Total: '+C.length+'</span><span class="pill">✓ Enviados: '+ok+'</span><span class="pill">✗ Sem WhatsApp: '+no+'</span><span class="pill">Faltam: '+(C.length-ok-no)+'</span>':"";
+}
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function mark(i,v){var n=C[i].num;ST[n]=ST[n]==v?"":v;lsSet("zap_st",JSON.stringify(ST));render();}
+function cp(i){
+ var t=text(C[i]),b=$("c"+i);
+ function ok(){b.textContent="Copiado ✓";}
+ function fb(){var a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok();}catch(e){}a.remove();}
+ try{navigator.clipboard.writeText(t).then(ok,fb);}catch(e){fb();}
+}
+function clr(){
+ if(!confirm("Apagar mensagem, contatos e status?"))return;
+ $("msg").value="";$("nums").value="";C=[];ST={};
+ ["zap_msg","zap_nums","zap_st"].forEach(function(k){try{localStorage.removeItem(k)}catch(e){}});
+ render();
+}
+(function(){
+ var m=lsGet("zap_msg"),n=lsGet("zap_nums"),d=lsGet("zap_ddd"),s=lsGet("zap_st");
+ if(m)$("msg").value=m;if(n)$("nums").value=n;if(d)$("ddd").value=d;
+ try{if(s)ST=JSON.parse(s)||{};}catch(e){ST={};}
+ if(n){C=parse();render();}
+})();
+</script></body></html>
